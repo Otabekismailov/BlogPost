@@ -4,43 +4,57 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.generics import CreateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView, ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, \
+    RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly, SAFE_METHODS
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from blog.models import Comment, Post, LikeDislike, Category
+from blog.models import Comment, Post, LikeDislike, Category, Tag
 from blog.serializers import AddCommentSerializer, PostApiListSerializers, PostApiCreateSerializers, \
-    PostLikeDislikeSerializer, CategoryListSerializers, PostLikeDislikeListSerializer
+    PostLikeDislikeSerializer, CategoryListSerializers, PostLikeDislikeListSerializer, TagSerializers
 from paginations import CustomPageNumberPagination
 
 
 class PostListApiView(ListCreateAPIView):
-    queryset = Post.objects.order_by("like_dislike")
+    queryset = Post.objects.order_by('-like_dislike')
+    permission_classes = (AllowAny,)
     pagination_class = CustomPageNumberPagination
     filter_backends = (DjangoFilterBackend, OrderingFilter, SearchFilter)
     filterset_fields = ("category", "tag")
     ordering_fields = ("likes", "dislikes")
     search_fields = ("title", "category__name", "tag__name",)
 
-    def get_serializer_class(self):
-        if self.request.method == "POST":
-            if self.request.user.is_anonymous:
-                data = {"detail": self.request.user.is_anonymous}
-                return Response(data, status=status.HTTP_401_UNAUTHORIZED)
+    def get_permissions(self):
+        if self.request.method == SAFE_METHODS or self.request.method == "GET":
+            self.permission_classes = (AllowAny,)
+            self.serializer_class = PostApiListSerializers
+            return [permission() for permission in self.permission_classes]
+        self.permission_classes = (IsAuthenticated,)
+        self.serializer_class = PostApiCreateSerializers
+        return [permission() for permission in self.permission_classes]
 
-            return PostApiCreateSerializers
-        elif self.request.method == "GET":
-            return PostApiListSerializers
+    def get_serializer(self, *args, **kwargs):
+        if self.request.method == "POST":
+            self.permission_classes = (IsAuthenticated,)
+            serializer_class = PostApiCreateSerializers
+            kwargs.setdefault('context', self.get_serializer_context())
+            return serializer_class(*args, **kwargs)
+        else:
+            self.permission_classes = (AllowAny,)
+            serializer_class = PostApiListSerializers
+            kwargs.setdefault('context', self.get_serializer_context())
+            return serializer_class(*args, **kwargs)
 
     def perform_create(self, serializers):
         serializers.save(author=self.request.user)
 
 
 class PostDetailApiView(RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticated,)
     queryset = Post.objects.all()
     serializer_class = PostApiListSerializers
+    pagination_class = CustomPageNumberPagination
     lookup_field = 'slug'
 
     def get(self, request, *args, **kwargs):
@@ -49,26 +63,44 @@ class PostDetailApiView(RetrieveUpdateDestroyAPIView):
             reviews = reviewed.get("reviewed")
             reviews += 1
             self.queryset.values('reviewed').filter(slug=self.kwargs.get('slug')).update(reviewed=reviews)
-        return self.retrieve(request, *args, **kwargs)
+
+            return self.retrieve(request, *args, **kwargs)
+
+    def get_permissions(self):
+        if self.request.method == SAFE_METHODS:
+            self.permission_classes = (AllowAny,)
+            self.serializer_class = PostApiListSerializers
+            return [permission() for permission in self.permission_classes]
+        return [permission() for permission in self.permission_classes]
 
 
-class AddCommentAPI(ListCreateAPIView):
+class AddCommentAPI(CreateAPIView):
     queryset = Comment.objects.all()
     serializer_class = AddCommentSerializer
-    permission_class = [IsAuthenticated]
+    permission_class = (IsAuthenticated,)
     lookup_field = 'slug'
 
     def perform_create(self, serializers):
         slug = self.kwargs.get('slug')
         post = get_object_or_404(Post, slug=slug)
-        if self.request.method == "GET":
-            reviewed = post.objects.values('reviewed').get(slug=slug)
-            reviewed += 1
-            post.objects.values('reviewed').filter(slug=slug).update(reviewed=reviewed)
         serializers.save(post=post, author=self.request.user)
 
 
-# def post(request):
+class CommentDetailApi(RetrieveUpdateDestroyAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = AddCommentSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        if request.method == "GET":
+            pk = self.kwargs.get("pk")
+            comment = get_object_or_404(Comment, pk=pk)
+            if comment:
+                reviewed = self.queryset.values('reviewed').get(pk=pk)
+                reviews = reviewed.get("reviewed")
+                reviews += 1
+                self.queryset.values('reviewed').filter(pk=pk).update(reviewed=reviews)
+        return self.retrieve(request, *args, **kwargs)
 
 
 class PostLikeApiView(APIView):
@@ -100,12 +132,26 @@ class PostLikeApiView(APIView):
 
 
 class LikeDislikeListApi(ListAPIView):
-    queryset = LikeDislike.objects.all()
-    serializer_class = PostLikeDislikeListSerializer
+    permission_classes = (IsAuthenticated,)
     pagination_class = CustomPageNumberPagination
+    serializer_class = PostLikeDislikeListSerializer
+    queryset = LikeDislike.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = get_object_or_404(self.queryset, user_id=request.user.id)
+        serializer = self.get_serializer(queryset)
+        return Response(serializer.data)
 
 
 class CategoryListApi(ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategoryListSerializers
+    pagination_class = CustomPageNumberPagination
+    permission_classes = (AllowAny,)
+
+
+class TagListApi(ListAPIView):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializers
+    permission_classes = (AllowAny,)
     pagination_class = CustomPageNumberPagination

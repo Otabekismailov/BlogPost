@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 
 from .models import User
 
@@ -83,3 +84,18 @@ class UserSerializersList(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['email', 'username', 'first_name', 'last_name', 'date']
+
+
+class SocialSerializersList(serializers.ModelSerializer):
+    access_token = serializers.CharField()
+
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+    token = serializers.SerializerMethodField('get_user_token')
+
+    def get_user_token(self, obj):
+        token, created = Token.objects.get_or_create(user=obj.user)
+        return token.key
+
+    class Meta:
+        model = User

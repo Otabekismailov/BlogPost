@@ -34,8 +34,3 @@ class TestUser(TestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, 200)
 
-    def test_user_detail(self):
-        url = reverse('user-detail', kwargs={"pk": self.user.pk})
-        client.login()
-        response = client.delete(url)
-        self.assertEqual(response.status_code, 204)

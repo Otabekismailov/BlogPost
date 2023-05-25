@@ -64,7 +64,4 @@ class ChangePasswordView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ProfDetail(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
-    queryset = User.objects.all()
-    serializer_class = UserSerializersList
+

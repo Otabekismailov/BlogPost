@@ -48,17 +48,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
+    'dj_rest_auth',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
     'drf_yasg',
     'django_filters',
+
     # App,
     'blog.apps.BlogConfig',
     'users.apps.UsersConfig',
 
 ]
-
+SITE_ID = 1
 AUTH_USER_MODEL = 'users.User'
 
 MIDDLEWARE = [
@@ -162,14 +168,20 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
         # 'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
     ],
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 
 }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': datetime.timedelta(days=30),
     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=40),
+    "UPDATE_LAST_LOGIN": True,
+}
+REST_AUTH = {
+    'USE_JWT': True
 }
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

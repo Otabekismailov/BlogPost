@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 
-from blog.models import Post, Comment, LikeDislike, Category
+from blog.models import Post, Comment, LikeDislike, Category, Tag
 from users.models import User
 
 
@@ -26,7 +26,7 @@ class PostCommentSerializer(serializers.ModelSerializer):
 class PostApiCreateSerializers(serializers.ModelSerializer):
     class Meta:
         model = Post
-        fields = ('title', 'text', 'tag', 'image', 'video',)
+        fields = ('title', 'text', 'tag', 'image', 'video', 'category',)
 
 
 class PostApiListSerializers(serializers.ModelSerializer):
@@ -47,7 +47,7 @@ class AddCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ('id', 'content', 'post', 'author', 'reviewed', 'parent')
-        read_only_fields = ("id", "post", "author", "reviewed",)
+        read_only_fields = ("id", "post", "author", "reviewed", "parent",)
 
 
 class PostLikeDislikeSerializer(serializers.Serializer):
@@ -55,7 +55,7 @@ class PostLikeDislikeSerializer(serializers.Serializer):
 
 
 class PostLikeDislikeListSerializer(serializers.ModelSerializer):
-    post = PostApiListSerializers()
+    post = PostApiListSerializers(read_only=True)
 
     class Meta:
         model = LikeDislike
@@ -68,3 +68,11 @@ class CategoryListSerializers(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ('id', 'name', 'post')
+
+
+class TagSerializers(serializers.ModelSerializer):
+    post = PostApiListSerializers(many=True)
+
+    class Meta:
+        model = Tag
+        fields = ('name', 'slug', 'post')

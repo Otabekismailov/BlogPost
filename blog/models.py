@@ -1,7 +1,7 @@
 import datetime
 
 from django.db import models
-from django.utils.functional import cached_property
+
 from django.utils.text import slugify, gettext_lazy as _
 
 from users.models import User
